@@ -9,9 +9,23 @@ export interface UserInfo {
   nickname: string
 }
 
+export interface RbacMenu {
+  id: number
+  parentId: number
+  name: string
+  path: string
+  component: string
+  icon?: string
+  permission?: string
+  children?: RbacMenu[]
+}
+
 export interface LoginResponse {
   token: string
   tokenType: string
   expiresIn: number
   user: UserInfo
+  roles: string[]
+  permissions: string[]
+  menus: RbacMenu[]
 }

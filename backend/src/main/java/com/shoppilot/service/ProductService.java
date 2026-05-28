@@ -35,39 +35,22 @@ public class ProductService {
         long page = Math.max(requestedPage, 1L);
         long size = Math.min(Math.max(requestedSize, 1L), 100L);
 
-        LambdaQueryWrapper<Product> countWrapper = buildQueryWrapper(request);
-        Long total = productMapper.selectCount(countWrapper);
+        Long total = productMapper.selectCount(buildQueryWrapper(request));
+        var records = productMapper.selectList(buildQueryWrapper(request)
+                .last("limit " + ((page - 1) * size) + ", " + size));
 
-        LambdaQueryWrapper<Product> listWrapper = buildQueryWrapper(request)
-                .last("limit " + ((page - 1) * size) + ", " + size);
-
-        var records = productMapper.selectList(listWrapper);
-        Map<Long, Category> categories;
-        if (!records.isEmpty()) {
-            categories = categoryMapper.selectBatchIds(
-                            records.stream().map(Product::getCategoryId).distinct().toList())
-                    .stream()
-                    .collect(Collectors.toMap(Category::getId, Function.identity()));
-        } else {
-            categories = Map.of();
-        }
-        Map<Long, Category> categoryMap = categories;
+        Map<Long, Category> categories = records.isEmpty()
+                ? Map.of()
+                : categoryMapper.selectBatchIds(records.stream().map(Product::getCategoryId).distinct().toList())
+                .stream()
+                .collect(Collectors.toMap(Category::getId, Function.identity()));
 
         return new PageResult<>(
-                records.stream().map(product -> toVO(product, categoryMap)).toList(),
+                records.stream().map(product -> toVO(product, categories)).toList(),
                 total,
                 page,
                 size
         );
-    }
-
-    private LambdaQueryWrapper<Product> buildQueryWrapper(ProductQueryRequest request) {
-        return new LambdaQueryWrapper<Product>()
-                .like(StringUtils.hasText(request.getKeyword()), Product::getName, request.getKeyword())
-                .eq(request.getCategoryId() != null, Product::getCategoryId, request.getCategoryId())
-                .eq(request.getStatus() != null, Product::getStatus, request.getStatus())
-                .orderByDesc(Product::getUpdatedAt)
-                .orderByDesc(Product::getId);
     }
 
     public ProductVO getById(Long id) {
@@ -103,6 +86,15 @@ public class ProductService {
     public void delete(Long id) {
         requireProduct(id);
         productMapper.deleteById(id);
+    }
+
+    private LambdaQueryWrapper<Product> buildQueryWrapper(ProductQueryRequest request) {
+        return new LambdaQueryWrapper<Product>()
+                .like(StringUtils.hasText(request.getKeyword()), Product::getName, request.getKeyword())
+                .eq(request.getCategoryId() != null, Product::getCategoryId, request.getCategoryId())
+                .eq(request.getStatus() != null, Product::getStatus, request.getStatus())
+                .orderByDesc(Product::getUpdatedAt)
+                .orderByDesc(Product::getId);
     }
 
     private void fillProduct(Product product, ProductSaveRequest request) {

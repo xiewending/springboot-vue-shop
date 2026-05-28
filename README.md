@@ -1,8 +1,8 @@
 # ShopPilot
 
-ShopPilot 是一个基于 Java + Spring Boot + Vue 3 的电商运营后台展示项目。当前已完成项目骨架、登录权限、商品管理和订单管理模块。
+ShopPilot 是一个基于 Java + Spring Boot + Vue 3 的电商运营后台展示项目。当前已完成项目骨架、登录权限、商品管理、订单管理和 RBAC 权限菜单模块。
 
-当前项目目录已调整为：
+当前项目目录：
 
 ```text
 F:\Project_by_codex\shop-pilot
@@ -32,7 +32,7 @@ F:\Project_by_codex\shop-pilot
 - Axios
 - Vue Router
 
-## 当前项目结构
+## 项目结构
 
 ```text
 shop-pilot/
@@ -49,7 +49,8 @@ shop-pilot/
 |   `-- sql/
 |       |-- 001_sys_user.sql
 |       |-- 002_product_category.sql
-|       `-- 003_orders.sql
+|       |-- 003_orders.sql
+|       `-- 004_rbac.sql
 |-- .gitignore
 `-- README.md
 ```
@@ -63,8 +64,6 @@ shop-pilot/
 - Node.js 18+
 - MySQL 8
 - Redis
-
-当前项目已移动到 `F:\Project_by_codex\shop-pilot`，后续命令都以这个目录为准。
 
 ## 后端配置
 
@@ -94,20 +93,7 @@ spring:
       port: 6379
 ```
 
-本地开发可以使用不提交的配置文件覆盖账号密码：
-
-```text
-backend/src/main/resources/application-local.yml
-```
-
-示例：
-
-```yaml
-spring:
-  datasource:
-    username: shop_pilot
-    password: shop_pilot123
-```
+本地开发可用 `backend/src/main/resources/application-local.yml` 覆盖数据库账号密码。
 
 ## 数据库初始化
 
@@ -117,23 +103,23 @@ spring:
 CREATE DATABASE shop_pilot DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
-然后按顺序执行 SQL：
+然后按顺序执行：
 
 ```text
 docs/sql/001_sys_user.sql
 docs/sql/002_product_category.sql
 docs/sql/003_orders.sql
+docs/sql/004_rbac.sql
 ```
 
-默认登录账号：
+RBAC 初始化账号：
 
 ```text
-admin / admin123
+admin / admin123      系统管理员，拥有商品、订单和全部按钮权限
+operator / admin123   订单运营，只能看到工作台和订单管理
 ```
 
 ## 启动后端
-
-进入后端目录：
 
 ```bash
 cd F:\Project_by_codex\shop-pilot\backend
@@ -148,8 +134,6 @@ curl http://localhost:8080/api/health
 
 ## 启动前端
 
-进入前端目录：
-
 ```bash
 cd F:\Project_by_codex\shop-pilot\frontend
 npm install
@@ -162,19 +146,25 @@ npm run dev
 http://localhost:5173
 ```
 
-开发环境下，Vite 会把 `/api` 请求代理到：
+开发环境下，Vite 会把 `/api` 请求代理到 `http://localhost:8080`。
 
-```text
-http://localhost:8080
-```
+## 登录与 RBAC
 
-## 登录接口
+登录接口：
 
 ```text
 POST /api/auth/login
 ```
 
-请求示例：
+登录成功后返回：
+
+- JWT token
+- 用户信息
+- 角色编码列表
+- 权限标识列表
+- 菜单树
+
+示例：
 
 ```bash
 curl -X POST http://localhost:8080/api/auth/login ^
@@ -182,25 +172,42 @@ curl -X POST http://localhost:8080/api/auth/login ^
   -d "{\"username\":\"admin\",\"password\":\"admin123\"}"
 ```
 
-登录成功后，受保护接口需要携带：
+受保护接口需要携带：
 
 ```text
 Authorization: Bearer <token>
+```
+
+## RBAC 表
+
+```text
+sys_user        用户表
+sys_role        角色表
+sys_menu        菜单和按钮权限表
+sys_user_role   用户角色关联表
+sys_role_menu   角色菜单关联表
+```
+
+菜单权限示例：
+
+```text
+dashboard:view
+product:view
+product:add
+product:edit
+product:delete
+product:status
+order:view
+order:detail
+order:status
 ```
 
 ## 商品接口
 
 商品接口均需要登录。
 
-分类接口：
-
 ```text
-GET /api/categories/options
-```
-
-商品接口：
-
-```text
+GET    /api/categories/options       商品分类选项
 GET    /api/products                 商品分页查询，支持 page、size、keyword、categoryId、status
 GET    /api/products/{id}            商品详情
 POST   /api/products                 新增商品
@@ -240,19 +247,18 @@ PATCH /api/orders/{id}/status        修改订单状态
 已取消 -> 终态
 ```
 
-## 功能测试步骤
+## 测试流程
 
 1. 启动 MySQL 和 Redis。
 2. 创建 `shop_pilot` 数据库。
-3. 执行 `docs/sql/001_sys_user.sql`。
-4. 执行 `docs/sql/002_product_category.sql`。
-5. 执行 `docs/sql/003_orders.sql`。
-6. 启动后端：`cd F:\Project_by_codex\shop-pilot\backend && mvn spring-boot:run`。
-7. 启动前端：`cd F:\Project_by_codex\shop-pilot\frontend && npm run dev`。
-8. 打开 `http://localhost:5173`。
-9. 使用 `admin / admin123` 登录。
-10. 进入 `商品管理`，测试新增、编辑、删除、搜索、分页、上下架。
-11. 进入 `订单管理`，测试搜索、状态筛选、分页、查看详情、订单状态流转。
+3. 依次执行 `docs/sql/001_sys_user.sql`、`002_product_category.sql`、`003_orders.sql`、`004_rbac.sql`。
+4. 启动后端：`cd F:\Project_by_codex\shop-pilot\backend && mvn spring-boot:run`。
+5. 启动前端：`cd F:\Project_by_codex\shop-pilot\frontend && npm run dev`。
+6. 打开 `http://localhost:5173`。
+7. 使用 `admin / admin123` 登录，确认左侧菜单显示 `工作台`、`商品管理`、`订单管理`，商品页显示新增、编辑、删除、上下架按钮。
+8. 退出后使用 `operator / admin123` 登录，确认左侧菜单只显示 `工作台`、`订单管理`，不会显示商品菜单。
+9. 在订单页确认运营账号可以查看详情和变更订单状态。
+10. 清理浏览器 localStorage 后重新登录，可验证菜单树和动态路由会重新生成。
 
 ## 常用命令
 

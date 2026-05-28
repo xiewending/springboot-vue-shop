@@ -20,6 +20,10 @@ body {
   margin: 0;
 }
 
+#app {
+  min-height: 100vh;
+}
+
 button {
   font: inherit;
 }
@@ -30,6 +34,64 @@ button {
   background:
     linear-gradient(135deg, rgba(20, 184, 166, 0.12), transparent 34%),
     linear-gradient(315deg, rgba(245, 158, 11, 0.12), transparent 30%),
+    #eef2f7;
+}
+
+.admin-layout {
+  min-height: 100vh;
+  background: #eef2f7;
+}
+
+.admin-aside {
+  border-right: 1px solid #dbe3ef;
+  background: #ffffff;
+}
+
+.admin-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  height: 64px;
+  justify-content: center;
+  padding: 0 20px;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.admin-brand strong {
+  color: #0f766e;
+  font-size: 18px;
+}
+
+.admin-brand span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.admin-menu {
+  border-right: 0;
+}
+
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #dbe3ef;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.admin-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #475569;
+  font-size: 14px;
+}
+
+.admin-main {
+  padding: 28px;
+  background:
+    linear-gradient(135deg, rgba(20, 184, 166, 0.10), transparent 34%),
+    linear-gradient(315deg, rgba(245, 158, 11, 0.10), transparent 30%),
     #eef2f7;
 }
 
@@ -279,6 +341,27 @@ h1 {
 }
 
 @media (max-width: 640px) {
+  .admin-layout {
+    display: block;
+  }
+
+  .admin-aside {
+    width: 100% !important;
+    border-right: 0;
+  }
+
+  .admin-header,
+  .admin-user {
+    align-items: stretch;
+    flex-direction: column;
+    height: auto;
+    padding: 12px;
+  }
+
+  .admin-main {
+    padding: 20px;
+  }
+
   .page-shell {
     padding: 20px;
   }

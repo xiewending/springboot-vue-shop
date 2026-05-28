@@ -5,6 +5,7 @@ import { Lock, User } from '@element-plus/icons-vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import axios from 'axios'
 
+import { setupDynamicRoutes } from '../router'
 import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
@@ -32,8 +33,9 @@ async function handleLogin() {
   loading.value = true
   try {
     await authStore.login(form.username.trim(), form.password)
+    setupDynamicRoutes()
     ElMessage.success('登录成功')
-    await router.replace((route.query.redirect as string) || '/')
+    await router.replace((route.query.redirect as string) || authStore.firstMenuPath)
   } catch (error) {
     if (axios.isAxiosError(error)) {
       ElMessage.error(error.response?.data?.message ?? '登录请求失败')

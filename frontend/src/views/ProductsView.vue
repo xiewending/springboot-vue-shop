@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { ArrowLeft, Delete, Edit, Plus, Refresh, Search } from '@element-plus/icons-vue'
+import { Delete, Edit, Plus, Refresh, Search } from '@element-plus/icons-vue'
 
 import {
   createProduct,
@@ -12,9 +11,10 @@ import {
   updateProduct,
   updateProductStatus
 } from '../api/product'
+import { useAuthStore } from '../stores/auth'
 import type { CategoryOption, Product, ProductForm } from '../types/product'
 
-const router = useRouter()
+const authStore = useAuthStore()
 const loading = ref(false)
 const saving = ref(false)
 const dialogVisible = ref(false)
@@ -23,6 +23,11 @@ const formRef = ref<FormInstance>()
 const products = ref<Product[]>([])
 const categories = ref<CategoryOption[]>([])
 const total = ref(0)
+
+const canCreate = computed(() => authStore.hasPermission('product:add'))
+const canEdit = computed(() => authStore.hasPermission('product:edit'))
+const canDelete = computed(() => authStore.hasPermission('product:delete'))
+const canChangeStatus = computed(() => authStore.hasPermission('product:status'))
 
 const query = reactive({
   page: 1,
@@ -157,111 +162,112 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="page-shell">
-    <section class="workspace wide">
-      <header class="topbar">
-        <div>
-          <p class="eyebrow">商品运营</p>
-          <h1>商品管理</h1>
-        </div>
-        <div class="actions">
-          <el-button :icon="ArrowLeft" @click="router.push('/')">返回</el-button>
-          <el-button :icon="Refresh" :loading="loading" @click="loadProducts">刷新</el-button>
-          <el-button type="primary" :icon="Plus" @click="openCreateDialog">新增商品</el-button>
-        </div>
-      </header>
-
-      <section class="toolbar">
-        <el-input
-          v-model="query.keyword"
-          class="filter-input"
-          clearable
-          placeholder="搜索商品名称"
-          :prefix-icon="Search"
-          @keyup.enter="handleSearch"
-        />
-        <el-select v-model="query.categoryId" class="filter-select" clearable placeholder="商品分类">
-          <el-option v-for="category in categories" :key="category.id" :label="category.name" :value="category.id" />
-        </el-select>
-        <el-select v-model="query.status" class="filter-select" clearable placeholder="上下架状态">
-          <el-option label="上架" :value="1" />
-          <el-option label="下架" :value="0" />
-        </el-select>
-        <el-button type="primary" :icon="Search" @click="handleSearch">查询</el-button>
-      </section>
-
-      <el-table v-loading="loading" :data="products" class="data-table" border>
-        <el-table-column prop="name" label="商品名称" min-width="180" />
-        <el-table-column prop="categoryName" label="分类" width="140" />
-        <el-table-column prop="price" label="价格" width="120">
-          <template #default="{ row }">¥{{ Number(row.price).toFixed(2) }}</template>
-        </el-table-column>
-        <el-table-column prop="stock" label="库存" width="110" />
-        <el-table-column label="状态" width="130">
-          <template #default="{ row }">
-            <el-switch
-              :model-value="row.status === 1"
-              active-text="上架"
-              inactive-text="下架"
-              inline-prompt
-              @change="(value: string | number | boolean) => handleStatusChange(row, Boolean(value))"
-            />
-          </template>
-        </el-table-column>
-        <el-table-column prop="updatedAt" label="更新时间" width="190" />
-        <el-table-column label="操作" width="170" fixed="right">
-          <template #default="{ row }">
-            <el-button :icon="Edit" link type="primary" @click="openEditDialog(row)">编辑</el-button>
-            <el-button :icon="Delete" link type="danger" @click="handleDelete(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <div class="pagination-bar">
-        <el-pagination
-          v-model:current-page="query.page"
-          v-model:page-size="query.size"
-          :page-sizes="[10, 20, 50]"
-          layout="total, sizes, prev, pager, next"
-          :total="total"
-          @size-change="loadProducts"
-          @current-change="loadProducts"
-        />
+  <section class="workspace wide">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">商品运营</p>
+        <h1>商品管理</h1>
       </div>
+      <div class="actions">
+        <el-button :icon="Refresh" :loading="loading" @click="loadProducts">刷新</el-button>
+        <el-button v-if="canCreate" type="primary" :icon="Plus" @click="openCreateDialog">新增商品</el-button>
+      </div>
+    </header>
+
+    <section class="toolbar">
+      <el-input
+        v-model="query.keyword"
+        class="filter-input"
+        clearable
+        placeholder="搜索商品名称"
+        :prefix-icon="Search"
+        @keyup.enter="handleSearch"
+      />
+      <el-select v-model="query.categoryId" class="filter-select" clearable placeholder="商品分类">
+        <el-option v-for="category in categories" :key="category.id" :label="category.name" :value="category.id" />
+      </el-select>
+      <el-select v-model="query.status" class="filter-select" clearable placeholder="上下架状态">
+        <el-option label="上架" :value="1" />
+        <el-option label="下架" :value="0" />
+      </el-select>
+      <el-button type="primary" :icon="Search" @click="handleSearch">查询</el-button>
     </section>
 
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="560px">
-      <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
-        <el-form-item label="商品名称" prop="name">
-          <el-input v-model="form.name" maxlength="128" show-word-limit />
+    <el-table v-loading="loading" :data="products" class="data-table" border>
+      <el-table-column prop="name" label="商品名称" min-width="180" />
+      <el-table-column prop="categoryName" label="分类" width="140" />
+      <el-table-column prop="price" label="价格" width="120">
+        <template #default="{ row }">¥{{ Number(row.price).toFixed(2) }}</template>
+      </el-table-column>
+      <el-table-column prop="stock" label="库存" width="110" />
+      <el-table-column label="状态" width="130">
+        <template #default="{ row }">
+          <el-switch
+            v-if="canChangeStatus"
+            :model-value="row.status === 1"
+            active-text="上架"
+            inactive-text="下架"
+            inline-prompt
+            @change="(value: string | number | boolean) => handleStatusChange(row, Boolean(value))"
+          />
+          <el-tag v-else :type="row.status === 1 ? 'success' : 'info'">
+            {{ row.status === 1 ? '上架' : '下架' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="updatedAt" label="更新时间" width="190" />
+      <el-table-column v-if="canEdit || canDelete" label="操作" width="170" fixed="right">
+        <template #default="{ row }">
+          <el-button v-if="canEdit" :icon="Edit" link type="primary" @click="openEditDialog(row)">编辑</el-button>
+          <el-button v-if="canDelete" :icon="Delete" link type="danger" @click="handleDelete(row)">删除</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <div class="pagination-bar">
+      <el-pagination
+        v-model:current-page="query.page"
+        v-model:page-size="query.size"
+        :page-sizes="[10, 20, 50]"
+        layout="total, sizes, prev, pager, next"
+        :total="total"
+        @size-change="loadProducts"
+        @current-change="loadProducts"
+      />
+    </div>
+  </section>
+
+  <el-dialog v-model="dialogVisible" :title="dialogTitle" width="560px">
+    <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
+      <el-form-item label="商品名称" prop="name">
+        <el-input v-model="form.name" maxlength="128" show-word-limit />
+      </el-form-item>
+      <el-form-item label="商品分类" prop="categoryId">
+        <el-select v-model="form.categoryId" class="full-width" placeholder="请选择商品分类">
+          <el-option v-for="category in categories" :key="category.id" :label="category.name" :value="category.id" />
+        </el-select>
+      </el-form-item>
+      <div class="form-grid">
+        <el-form-item label="价格" prop="price">
+          <el-input-number v-model="form.price" class="full-width" :min="0" :precision="2" :step="1" />
         </el-form-item>
-        <el-form-item label="商品分类" prop="categoryId">
-          <el-select v-model="form.categoryId" class="full-width" placeholder="请选择商品分类">
-            <el-option v-for="category in categories" :key="category.id" :label="category.name" :value="category.id" />
-          </el-select>
+        <el-form-item label="库存" prop="stock">
+          <el-input-number v-model="form.stock" class="full-width" :min="0" :step="1" />
         </el-form-item>
-        <div class="form-grid">
-          <el-form-item label="价格" prop="price">
-            <el-input-number v-model="form.price" class="full-width" :min="0" :precision="2" :step="1" />
-          </el-form-item>
-          <el-form-item label="库存" prop="stock">
-            <el-input-number v-model="form.stock" class="full-width" :min="0" :step="1" />
-          </el-form-item>
-        </div>
-        <el-form-item label="状态" prop="status">
-          <el-radio-group v-model="form.status">
-            <el-radio-button :label="1">上架</el-radio-button>
-            <el-radio-button :label="0">下架</el-radio-button>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item label="商品描述" prop="description">
-          <el-input v-model="form.description" maxlength="500" rows="3" show-word-limit type="textarea" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="submitForm">保存</el-button>
-      </template>
-    </el-dialog>
-  </main>
+      </div>
+      <el-form-item label="状态" prop="status">
+        <el-radio-group v-model="form.status">
+          <el-radio-button :label="1">上架</el-radio-button>
+          <el-radio-button :label="0">下架</el-radio-button>
+        </el-radio-group>
+      </el-form-item>
+      <el-form-item label="商品描述" prop="description">
+        <el-input v-model="form.description" maxlength="500" rows="3" show-word-limit type="textarea" />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="dialogVisible = false">取消</el-button>
+      <el-button type="primary" :loading="saving" @click="submitForm">保存</el-button>
+    </template>
+  </el-dialog>
 </template>
